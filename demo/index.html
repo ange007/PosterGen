@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+        <script
+            src="https://code.jquery.com/jquery-3.3.1.min.js"
+            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+            crossorigin="anonymous"></script>
+
+        <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+
+		<style>
+			body {
+                font-family: 'Montserrat', sans-serif;
+				text-align: center;
+    			background: #74E868;
+			}
+
+            body>table {
+                width: 100%;
+            }
+
+            input[type="text"].short,
+            input[type="number"].short {
+                width: 50px;
+            }
+
+            button {
+                padding: 10px;
+                background: #14D100;
+                border: none;
+                border-radius: 10px;
+                transition: all 200ms ease; 
+                font-weight: bold;
+            }
+
+            button:hover {
+                background: #74E868;
+            }
+
+			.code {
+				max-height: 100px;
+				overflow: scroll;
+				display: inline-block;
+			}
+
+			.panel { 
+                padding: 10px;
+				border: 1px solid #14D100;
+				background: #CDF76F;
+			}
+
+            .header {
+                width: 100%;
+                margin-top: -10px;
+                margin-left: -10px;
+                padding: 10px;
+                background: #14D100;
+                border-radius: 5px 5px 0px 0px;
+            }
+
+            #controls.panel {
+				padding: 50px;
+            }
+
+            #controls .panel {
+                margin: 10px auto;
+                width: 50%;
+                min-width: 400px;
+                text-align: left;
+                border-radius: 5px 5px 0px 0px;
+            }
+
+            #controls .panel label {
+                display: block;
+                padding-bottom: 5px;
+            }
+
+            #controls .panel .line {
+                margin: 10px auto;
+                padding: 10px;
+                width: 50%;
+                border: 1px solid rgb(209, 136, 0);
+                background: #74E868;
+            }
+
+            #demo {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                top: 0px;
+                left: 0px;
+                background: rgb(56, 73, 54);
+            }
+
+            #demo iframe {
+                width: 100%;
+                height: 100%;
+            }
+		</style>
+	</head>
+	<body>
+        <table>
+            <tr><td width="50%">
+                <form id="controls" class="panel" action="ajax.php">
+                    <div id="background" class="panel">
+                        <h2 class="header">Size</h2>
+                        <label>
+                            Width:
+                            <input type="number" name="width" value="800" class="short"/>
+                        </label>
+
+                        <label>
+                            Height:
+                            <input type="number" name="height" value="300" class="short"/>
+                        </label>
+                    </div>
+                    <div id="background" class="panel">
+                        <h2 class="header">Background</h2>
+                        <label>
+                            Color:
+                            <input type="color" name="background-color" value="#00BD39"/>
+                        </label>
+                        <label>
+                            Image URL:
+                            <input type="text" name="background-image" value="./backgrounds/1.jpg"/>
+                        </label>
+                    </div>
+                    <div id="lines" class="panel">
+                        <h2 class="header">
+                            Lines
+                            <button type="button" name="add-line" style="float: right;">Add</button>
+                        </h2>
+                        <div class="list">
+                            <div class="line">
+                                <label>
+                                    Text:
+                                    <input type="text" name="text[]" value="Title"/>
+                                </label>
+                                <label>
+                                    Size:
+                                    <input type="number" name="size[]" value="50" class="short"/>
+                                </label>
+                                <label>
+                                    Color:
+                                    <input type="color" name="color[]" value="#FFC640"/>
+                                </label>
+                                <label>
+                                    Horizontal Align:
+                                    <select name="horizontal-alignment[]">
+                                        <option value="left">Left</option>
+                                        <option value="center" selected>Center</option>
+                                        <option value="right">Right</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Vertical Align:
+                                    <select name="vertical-alignment[]">
+                                        <option value="top">Top</option>
+                                        <option value="center" selected>Center</option>
+                                        <option value="bottom">Bottom</option>
+                                    </select>
+                                </label>
+                                <button type="button" name="remove-line">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    <br />
+                    <button>Generate</button>
+                    <button type="button" name="show-demo">Show Demo</button>
+                </form>
+            </td>
+            <td>
+                <div id="preview"></div>
+            </td></tr>
+        </table>
+
+        <div id="demo" style="display: none;">
+            <button type="button" name="hide-demo">Hide</button>
+            <div id="demo-content"></div>
+        </div>
+
+        <script>
+            /**
+            *
+            */
+            $( 'button[name="add-line"]' ).on( 'click', function( )
+            {
+                addLine( )
+                    .repaint( );
+            } );
+
+            /**
+            *
+            */
+            $( '#lines' ).on( 'click', 'button[name="remove-line"]', function( )
+            {
+                $( this ).parent( )
+                        .remove( );
+
+                repaint( );
+            } );
+
+            /**
+            *
+            */
+            $( 'body' ).on( 'change', 'input', function( event )
+            {
+                repaint( );
+            } );
+
+            /**
+            *
+            */
+            $( '#controls' ).on( 'submit', function( event )
+            {
+                var form = $( this );
+
+                $.ajax( {
+                    type: "POST",
+                    url: form.attr( 'action' ),
+                    data: form.serialize( ),
+                    success: function( data ) { $( '#preview' ).html( data ); }
+                } );
+
+
+                event.preventDefault( );
+                return false;
+            } );
+
+            /**
+            *
+            */
+            $( 'button[name="show-demo"]' ).on( 'click', function( event )
+            {
+                var $demo = $( '#demo' ).show( ),
+                    $demoContent = $demo.find( '#demo-content' );
+
+                if( $demoContent.html( ) === '' ) 
+                { 
+                    $demoContent.html( '<iframe src="./demo.php" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>' );
+                    
+                    $demoContent.find( 'iframe' ).on( "load reload", function( event ) 
+                    { 
+                        $tableHeight = $demoContent.height( );
+                        $iframeScrollHeight = this.contentWindow.document.body.scrollHeight;
+
+                        this.style.height = $iframeScrollHeight + 'px';
+                    } );
+                }
+            } );
+
+             /**
+            *
+            */
+            $( 'button[name="hide-demo"]' ).on( 'click', function( event )
+            {
+                var $demo = $( '#demo' ).hide( );
+            } );
+        
+            /**
+            *
+            */
+            repaint( );
+
+            /**
+            *
+            */
+            function repaint( )
+            {
+                $( '#controls' ).trigger( 'submit' );
+
+                return this;
+            }
+
+            /**
+            *
+            */
+            function addLine( )
+            {
+                $lineBlock = $( '.line' ).last( )
+                                        .clone( )
+                                        .appendTo( '#lines>.list' );
+
+                return this;
+            }
+
+            /**
+            *
+            */
+            function customizeLastLine( text, size, color, verticalAlign, horizontalAlign )
+            {
+                $lineBlock = $( '.line' ).last( );
+
+                $lineBlock.find( '[name="text[]"]' ).val( text || '' );
+                $lineBlock.find( '[name="size[]"]' ).val( size || 50 );
+                $lineBlock.find( '[name="color[]"]' ).val( color || '#FFC640' );
+                $lineBlock.find( '[name="horizontal-alignment[]"]' ).val( horizontalAlign || 'center' );
+                $lineBlock.find( '[name="vertical-alignment[]"]' ).val( verticalAlign || 'center' );            
+
+                return this;  
+            }
+
+            /**
+            *
+            */
+            addLine( )
+                .customizeLastLine( 'Subtitle', 20, '#FFC640', 'center', 'center' )
+                .repaint( );
+        </script>
+    </body>    
+</html>
