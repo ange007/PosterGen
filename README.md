@@ -24,14 +24,15 @@ Use for:
 * PHP >= 5.6
 * GD
 
+## Install
+```
+composer require ange007/poster-gen
+```
+
 ## Example Code
 ```php
 <?php
-	require_once '../src/Helpers.php';
-	require_once '../src/Options.php';
-	require_once '../src/Utils.php';
-	require_once '../src/Draw.php';
-	require_once '../src/PosterGen.php';
+	use \PosterGen;
 	
 	// Generate poster
 	$poster = ( new \PosterGen\PosterGen( [ ] ) )

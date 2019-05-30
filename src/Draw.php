@@ -83,7 +83,7 @@ trait Draw
 	/**
 	 * 
 	 */
-	protected function drawBackground( $image, $position, $color, $transparent, $angle )
+	protected function drawBackgroundColor( $image, $position, $color, $transparent, $angle )
 	{
 		/* @todo: !! */
 		if( $angle )
@@ -96,7 +96,52 @@ trait Draw
 		$transparencyColor = imageColorAllocateAlpha( $image , 0, 0, 0, 127 );
 
 		// $this->imageFilledRotatedRectangle( $image, $position[ 'x' ], $position[ 'y' ], $position[ 'width' ], $position[ 'height' ], $angle, $colorAllocate );
-		imageFilledRectangle( $image, $position[ 'x' ] - $padding, $position[ 'y' ] + $padding, $position[ 'x' ] + $position[ 'width' ] + $padding, $position[ 'y' ] - $position[ 'height' ] - $padding, $colorAllocate );
+		imageFilledRectangle( $image, 
+							$position[ 'x' ] - $padding, 
+							$position[ 'y' ] + $padding, 
+							$position[ 'x' ] + $position[ 'width' ] + $padding,
+							$position[ 'y' ] - $position[ 'height' ] - $padding, 
+							$colorAllocate );
+	}
+
+	/**
+	 * 
+	 */
+	protected function drawBackgroundImage( $image, $backgroundFile )
+	{
+		$backgroundImage = imageCreateFromString( file_get_contents( $backgroundFile ) );
+		imageLayerEffect( $backgroundImage, IMG_EFFECT_NORMAL );
+		imageSaveAlpha( $backgroundImage, true );
+
+		//
+		list( $backgroundImageWidth,  $backgroundImageHeight ) = getImageSize( $backgroundFile );
+		$backgroundImageNewWidth = $backgroundImageWidth;
+		$backgroundImageNewHeight = $backgroundImageHeight;	
+
+		//
+		if( $backgroundImageWidth < $this->size[ 'width' ]  )
+		{
+			$scalingFactor = $this->size[ 'width' ] / $backgroundImageWidth;
+			$backgroundImageNewWidth = $this->size[ 'width' ];
+			$backgroundImageNewHeight = round( $backgroundImageHeight * $scalingFactor );
+		}
+		// 
+		else if( $backgroundImageHeight < $this->size[ 'height' ] )
+		{
+			$scalingFactor = $this->size[ 'height' ] / $backgroundImageWidth;
+			$backgroundImageNewHeight = $this->size[ 'height' ];
+			$backgroundImageNewWidth = round( $backgroundImageHeight * $scalingFactor );
+		}
+
+		//
+		imageCopyResampled( $image, $backgroundImage, 
+							0, 0, 
+							0, 0,
+							$backgroundImageNewWidth, $backgroundImageNewHeight, 
+							$backgroundImageWidth, $backgroundImageHeight );
+
+		//
+		imageDestroy( $backgroundImage );
 	}
 
 	/**
@@ -120,9 +165,10 @@ trait Draw
 		//
 		$image = imageCreateTrueColor( $this->size[ 'width' ], $this->size[ 'height' ] );
 		imageLayerEffect( $image, IMG_EFFECT_NORMAL );
+		imageSaveAlpha( $image, true );
 
 		// Check for PHP < 7.2
-		if( function_exists( 'imageAntialias' )  ) { imageAntialias( $image, True ); }
+		if( function_exists( 'imageAntialias' ) ) { imageAntialias( $image, True ); }
 
 		// Colors
 		$bgColor = $this->createColor( $image, $this->backgroundColor );
@@ -139,9 +185,7 @@ trait Draw
 		// Background Image
 		if( !empty( $this->backgroundImage ) )
 		{
-			$backgroundImage = imageCreateFromString( file_get_contents( $this->backgroundImage ) );
-
-			imageCopyMerge( $image, $backgroundImage, 0, 0, 0, 0, $this->size[ 'width' ], $this->size[ 'height' ], $this->backgroundTransparent );
+			$this->drawBackgroundImage( $image, $this->backgroundImage );
 		}
 
 		// Overlay
@@ -154,10 +198,14 @@ trait Draw
 		$sectionsHeight = $this->calculateSectionsHeight( );
 
 		//
+		$verticalPadding = $this->verticalPadding + $this->borderSize;
+		$horizontalPadding = $this->horizontalPadding + $this->borderSize;
+
+		//
 		$currentBottom = [ 
-			'top' => $this->verticalPadding,
-			'bottom' => $this->size[ 'height' ] - $sectionsHeight[ 'bottom' ] - $this->verticalPadding,
-			'center' => ( ( $this->size[ 'height' ] - $sectionsHeight[ 'center' ] ) / 2.0 )
+			'top' => $verticalPadding,
+			'bottom' => $this->size[ 'height' ] - $sectionsHeight[ 'bottom' ] - $verticalPadding,
+			'center' => ( ( $this->size[ 'height' ] - $sectionsHeight[ 'center' ] ) / 2.0 ) - $verticalPadding
 		];
 
 		// Debug
@@ -166,40 +214,42 @@ trait Draw
 			$this->paintDebugData( $image, $sectionsHeight, $currentBottom );
 		}
 
+		//
+		$objectIndex = -1;
+
 		// Start position
 		foreach( $this->objectList as $value )
 		{
-			// 
-			$left = $this->horizontalPadding;
+			$objectIndex++;
 
-			// 
-			$horizontalAlignment = $value[ 'position' ][ 'horizontal-alignment' ];
-			$verticalAlignment = $value[ 'position' ][ 'vertical-alignment' ];
+			//
+			$horizontalAlignment = array_get( $value, 'position.horizontal-alignment' );
+			$verticalAlignment = array_get( $value, 'position.vertical-alignment' );
 
 			// Horizontal position
-			if( !empty( $value[ 'position' ][ 'x' ] ) ) { $left = $value[ 'position' ][ 'x' ]; }
+			if( !empty( array_get( $value, 'position.x' ) ) ) { $left = array_get( $value, 'position.x' ); }
 			else 
 			{
-				if( $horizontalAlignment === 'center' ) { $left = ( $this->size[ 'width' ] - $value[ 'size' ][ 'width' ] ) / 2.0; }
-				else if( $horizontalAlignment === 'right' ) { $left = ( $this->size[ 'width' ] - $value[ 'size' ][ 'width' ] ) - $this->horizontalPadding; }
-				else { $left = $this->horizontalPadding; }
+				if( $horizontalAlignment === 'center' ) { $left = ( $this->size[ 'width' ] - array_get( $value, 'size.width' ) ) / 2.0; }
+				else if( $horizontalAlignment === 'right' ) { $left = ( $this->size[ 'width' ] - array_get( $value, 'size.width' ) ) - $horizontalPadding; }
+				else { $left = $horizontalPadding; }
 			}
 
 			// Image
 			if( $value[ 'type' ] === 'image' )
 			{
 				// Vertical position
-				if( !empty( $value[ 'position' ][ 'y' ] ) ) { $top = $value[ 'position' ][ 'y' ]; }
+				if( !empty( array_get( $value, 'position.y' ) ) ) { $top = array_get( $value, 'position.y' ); }
 				else
 				{
-					$top = $currentBottom[ $verticalAlignment ] - $this->linePadding;
-					if( $value[ 'position' ][ 'vertical-alignment' ] === 'center' ) { $top += ( $this->size[ 'height' ] - $value[ 'size' ][ 'height' ] ) / 2.0; }
-					else if( $value[ 'position' ][ 'vertical-alignment' ] === 'bottom' ) { $top += ( $this->size[ 'height' ] - $value[ 'size' ][ 'height' ] ) - $this->verticalPadding; }
-					else { $top += $this->verticalPadding; }
+					$top = $currentBottom[ $verticalAlignment ] - $this->lineSpacing;
+					if( array_get( $value, 'position.vertical-alignment' ) === 'center' ) { $top += ( $this->size[ 'height' ] - array_get( $value, 'size.height' ) ) / 2.0; }
+					else if( array_get( $value, 'position.vertical-alignment' ) === 'bottom' ) { $top += ( $this->size[ 'height' ] - array_get( $value, 'size.height' ) ) - $verticalPadding; }
+					else { $top += $verticalPadding; }
 
 					if( !$value[ 'inline' ] )
 					{
-						$currentBottom[ $verticalAlignment ] = $top + $this->linePadding;
+						$currentBottom[ $verticalAlignment ] = $top + $this->lineSpacing;
 					}
 				}
 
@@ -209,8 +259,8 @@ trait Draw
 				imageSaveAlpha( $customImage, true );
 
 				//
-				$width = $value[ 'size' ][ 'width' ];
-				$height = $value[ 'size' ][ 'height' ];
+				$width = array_get( $value, 'size.width' );
+				$height = array_get( $value, 'size.height' );
 
 				//
 				$customTop = ( ( $top + $height ) > $this->size[ 'height' ] ) ? $top + ( $this->size[ 'height' ] - ( $top + $height ) ) : $top;
@@ -222,19 +272,29 @@ trait Draw
 									$customLeft, $customTop, 
 									0, 0,
 									$width, $height,
-									$value[ 'size' ][ 'original-width' ], $value[ 'size' ][ 'original-height' ] );
+									array_get( $value, 'size.original-width' ), array_get( $value, 'size.original-height' ) );
+
+				// 
+				imageDestroy( $customImage );
 			}
 			// Text
 			else if( $value[ 'type' ] === 'text' )
 			{
+				$charHeightDiffer = array_get( $value, 'coordinate.charHeightDiffer' );
+
 				// Vertical position
-				if( !empty( $value[ 'position' ][ 'y' ] ) ) { $top = $value[ 'position' ][ 'y' ]; }
+				if( !empty( array_get( $value, 'position.y' ) ) ) { $top = array_get( $value, 'position.y' ); }
 				else
 				{
-					$top = $currentBottom[ $verticalAlignment ] + $value[ 'size' ][ 'height' ];
+					$lineSpacing = $this->lineSpacing; 
+					// $lineSpacing -= ( mb_strtolower( $value[ 'text' ] ) === $value[ 'text' ] ) ? $charHeightDiffer : 0;
 
 					//
-					$currentBottom[ $verticalAlignment ] = $top + $this->linePadding;
+					$top = $currentBottom[ $verticalAlignment ];
+					$top += ( $objectIndex === 0 ? 0 : $lineSpacing ) + array_get( $value, 'size.height' );
+
+					//
+					$currentBottom[ $verticalAlignment ] = $top;
 				}
 
 				//
@@ -254,15 +314,15 @@ trait Draw
 					// $separatorLeft = ( $this->size[ 'width' ] - $separatorWidth ) / 2;
 
 					if( $horizontalAlignment === 'center' ) { $separatorLeft = ( $this->size[ 'width' ] - $separatorWidth ) / 2; }
-					else if( $horizontalAlignment === 'right' ) { $separatorLeft = ( $this->size[ 'width' ] - $separatorWidth ) - $this->horizontalPadding; }
-					else { $separatorLeft = $this->horizontalPadding; }
+					else if( $horizontalAlignment === 'right' ) { $separatorLeft = ( $this->size[ 'width' ] - $separatorWidth ); }
+					else { $separatorLeft = $this->horizontalPadding + $this->borderSize; }
 
 					$this->drawLine( $image, 
 									[
 										'x1' => $separatorLeft, 
 										'x2' => $separatorLeft + $separatorWidth, 
-										'y1' => $top - $value[ 'coordinate' ][ 'y' ] - ( $value[ 'size' ][ 'height' ] / 2 ),
-										'y2' => $top - $value[ 'coordinate' ][ 'y' ] - ( $value[ 'size' ][ 'height' ] / 2 ),
+										'y1' => $top - array_get( $value, 'coordinate.y' ) - ( array_get( $value, 'size.height' ) / 2 ),
+										'y2' => $top - array_get( $value, 'coordinate.y' ) - ( array_get( $value, 'size.height' ) / 2 ),
 									],
 									$value[ 'color' ] );
 
@@ -275,9 +335,9 @@ trait Draw
 					$this->drawLine( $image, 
 									[
 										'x1' => $left, 
-										'x2' => $left + $value[ 'size' ][ 'width' ], 
-										'y1' => $top - $value[ 'coordinate' ][ 'y' ] + 2, 
-										'y2' => $top - $value[ 'coordinate' ][ 'y' ] + 2
+										'x2' => $left + array_get( $value, 'size.width' ), 
+										'y1' => $top - array_get( $value, 'coordinate.y' ) + 2, 
+										'y2' => $top - array_get( $value, 'coordinate.y' ) + 2
 									],
 									$value[ 'color' ] );
 				}
@@ -307,22 +367,22 @@ trait Draw
 										$shadow[ 'color' ] );
 				}
 
-				// Background
-				if( is_array( $value[ 'background' ] ) && !empty( $value[ 'background' ][ 'color' ] ) )
+				// Text-line Background
+				if( is_array( $value[ 'background' ] ) && !empty( array_get( $value, 'background.color' ) ) )
 				{
-					$this->drawBackground( $image, 
+					$this->drawBackgroundColor( $image, 
 											[ 
 												'x'	=> $left,
 												'x1' => $left, 
-												'x2' => $left + $value[ 'size' ][ 'width' ], 
+												'x2' => $left + array_get( $value, 'size.width' ), 
 												'y' => $top, 
-												'y1' => $top - $value[ 'coordinate' ][ 'y' ], 
-												'y2' => $top - $value[ 'size' ][ 'height' ],
-												'height' => $value[ 'size' ][ 'height' ],
-												'width' => $value[ 'size' ][ 'width' ] 
+												'y1' => $top - array_get( $value, 'coordinate.y' ), 
+												'y2' => $top - array_get( $value, 'size.height' ),
+												'height' => array_get( $value, 'size.height' ),
+												'width' => array_get( $value, 'size.width' ) 
 											], 
-											$value[ 'background' ][ 'color' ], 
-											$value[ 'background' ][ 'transparent'],
+											array_get( $value, 'background.color' ), 
+											array_get( $value, 'background.transparent' ),
 											$value[ 'angle' ] );
 				}
 
@@ -341,9 +401,9 @@ trait Draw
 					$this->drawLine( $image,
 									[
 										'x1' => $left,
-										'x2' => $left + $value[ 'size' ][ 'width' ],
-										'y1' => $top - $value[ 'coordinate' ][ 'y' ] - ( $value[ 'size' ][ 'height' ] / 2 ),
-										'y2' => $top - $value[ 'coordinate' ][ 'y' ] - ( $value[ 'size' ][ 'height' ] / 2 ),
+										'x2' => $left + array_get( $value, 'size.width' ),
+										'y1' => $top - array_get( $value, 'coordinate.y' ) - ( array_get( $value, 'size.height' ) / 2 ),
+										'y2' => $top - array_get( $value, 'coordinate.y' ) - ( array_get( $value, 'size.height' ) / 2 ),
 									],
 									$value[ 'color' ] );
 				}
@@ -353,7 +413,7 @@ trait Draw
 		// Border
 		if( !empty( $this->borderColor ) && $this->borderSize > 0 )
 		{
-			$this->drawBorder( $image, $this->borderColor, $this->borderSize);
+			$this->drawBorder( $image, $this->borderColor, $this->borderSize );
 		}
 
 		// 

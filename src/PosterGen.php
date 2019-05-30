@@ -31,7 +31,7 @@ class PosterGen
 	/**
 	 * 
 	 */
-	function addText( /*string*/ $text, /*string*/ $font = '', /*int*/ $size = 0, /*string*/ $color = '', array $style = [ ], array $values = [ ] )
+	function addText( /*string/array*/ $msgOrLines, /*string*/ $font = '', /*int*/ $size = 0, /*string*/ $color = '', array $style = [ ], array $values = [ ] )
 	{
 		// Font params
 		$font = ( !empty( $font ) ? $font : $this->font );
@@ -46,14 +46,17 @@ class PosterGen
 
 		// Text background
 		$background = [ 
-			'color'			=> ( array_key_exists( 'background', $values ) && array_key_exists( 'color', $values[ 'background' ] ) ) ? $values[ 'background' ][ 'color' ] : $this->textBackgroundColor,
-			'transparent'	=> ( array_key_exists( 'background', $values ) && array_key_exists( 'transparent', $values[ 'background' ] ) ) ? $values[ 'background' ][ 'transparent' ] : $this->textBackgroundTransparent
+			'color'			=> ( array_key_exists( 'background', $values ) && array_key_exists( 'color', $values[ 'background' ] ) ) ? array_get( $values, 'background.color' ) : $this->textBackgroundColor,
+			'transparent'	=> ( array_key_exists( 'background', $values ) && array_key_exists( 'transparent', $values[ 'background' ] ) ) ? array_get( $values, 'background.transparent' ) : $this->textBackgroundTransparent
 		];
 
 		// Position values
 		$position = array_get( $values, 'position', [ ] );
 		if( empty( $position[ 'vertical-alignment' ] ) && empty( $position[ 'x' ] ) && empty( $position[ 'y' ] ) ){ $position[ 'vertical-alignment' ] = $this->verticalAlignment; };
 		if( empty( $position[ 'horizontal-alignment' ] ) && empty( $position[ 'x' ] ) && empty( $position[ 'y' ] ) ){ $position[ 'horizontal-alignment' ] = $this->horizontalAlignment; };
+
+		//
+		$verticalPadding = ( $this->verticalPadding + $this->borderSize );
 
 		//
 		$data = array_replace_recursive( [
@@ -80,8 +83,9 @@ class PosterGen
 		], $values );
 
 		// 
-		$linesArray = explode( "\r\n", $text );
-
+		if( is_array( $msgOrLines ) ) { $linesArray = $msgOrLines; }
+		else { $linesArray = explode( "\r\n", $msgOrLines ); }
+		
 		//
 		for( $l = 0; $l < count( $linesArray ); $l++ )
 		{
@@ -94,7 +98,7 @@ class PosterGen
 				$word = $wordArray[ $i ];
 				$textBox = $this->imageTTFBBoxExtended( $size, 0, $font, $wrappedText . ' ' . $word );
 				
-				if( $textBox[ 'width' ] < $this->getSize( true )[ 'width' ] )
+				if( $textBox[ 'width' ] < ( $this->getSize( true )[ 'width' ] - ( $verticalPadding * 2 ) ) )
 				{ 
 					$wrappedText .= ( $wrappedText === '' ? '' : ' ' ) . $word; 
 				}
@@ -120,7 +124,9 @@ class PosterGen
 	private function addTextLine( /*string*/ $text, array $values = [ ] )
 	{
 		// Calculate coordinates
-		$coordinate = $this->calculateTextCoordinates( $text, $values[ 'font-size' ], $values[ 'position' ], $values[ 'color' ], $values[ 'angle' ], $values[ 'font' ] );
+		$coordinate = $this->calculateTextCoordinates( $text, 
+													$values[ 'font-size' ], $values[ 'position' ], $values[ 'color' ], 
+													$values[ 'angle' ], $values[ 'font' ] );
 
 		//
 		$data = array_replace_recursive( [

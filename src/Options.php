@@ -10,7 +10,7 @@ trait Options
 	protected $fontColor = '#000000';
 	protected $fontSize = 14;
 	protected $fontStyle = [ ];
-	protected $linePadding = 8;
+	protected $lineSpacing = 8;
 
 	protected $backgroundImage = '';
 	protected $backgroundTransparent = 100;
@@ -121,9 +121,9 @@ trait Options
 		return $this;
 	}
 
-	function setLinePadding( /*int*/ $value )
+	function setLineSpacing( /*int*/ $value )
 	{
-		$this->linePadding = $value;
+		$this->lineSpacing = $value;
 
 		return $this;
 	}
@@ -142,13 +142,12 @@ trait Options
 		return $this;
 	}
 
-	function setBackgroundImage( /*string*/ $image, /*int*/ $transparent = 0 )
+	function setBackgroundImage( /*string*/ $image )
 	{
 		if( file_exists( $image )
 			|| ( filter_var( $image, FILTER_VALIDATE_URL ) && @get_headers( $image )[0] !== 'HTTP/1.0 404 Not Found' ) ) 
 		{
 			$this->backgroundImage = $image;
-			if( $transparent > 0 ) { $this->backgroundTransparent = $transparent; }
 		}
 		else
 		{
